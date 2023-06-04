@@ -84,7 +84,7 @@ if __name__ == "__main__":
     ent_coef = 0.1
     vf_coef = 0.1
     clip_coef = 0.1
-    gamma = 0.99
+    gamma = 0.1
     batch_size = 256
     stack_size = 4
     frame_size = (64, 64)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     total_episodes = 300
 
     # default `log_dir` is "runs" - we'll be more specific here
-    writer = SummaryWriter('runs/pistonball_300')
+    writer = SummaryWriter('runs/pistonball_300_1')
 
     """ ENV SETUP """
     env = pistonball_v6.parallel_env(

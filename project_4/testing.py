@@ -1,23 +1,23 @@
-import gym
+import gymnasium
 from stable_baselines3 import PPO
 import json
 
 
-env = gym.make("LunarLander-v2")
+env = gymnasium.make("LunarLander-v2", render_mode="human")
 
 REPS = 10
 
 # load ppo model
-model = PPO.load("ppo_9_lunar_lander")
+model = PPO.load("models\gamma_0.999_rep_9_arch_64")
 
 rewards = []
 
 for rep in range(REPS):
     episode_rewards = []
-    obs = env.reset()
+    obs, _ = env.reset()
     while True:
         action, _states = model.predict(obs, deterministic=True)
-        obs, reward, done, info = env.step(action)
+        obs, reward, done, _, info = env.step(action)
         episode_rewards.append(reward)
         env.render()
         if done:

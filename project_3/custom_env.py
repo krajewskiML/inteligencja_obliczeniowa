@@ -4,8 +4,8 @@ will be able to apply a force to the body. The goal of the agent is to move the 
 arrows that will be shot in its direction"""
 
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium
+from gymnasium import spaces
 from typing import Optional
 import pygame
 
@@ -52,7 +52,7 @@ class ContactDetector(b2ContactListener):
         pass
 
 
-class ArrowAvoider(gym.Env):
+class ArrowAvoider(gymnasium.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': FPS
@@ -87,6 +87,9 @@ class ArrowAvoider(gym.Env):
             ] +
             [
                 0.0 for _ in range(cones)
+            ] +
+            [
+                -1.0 for _ in range(cones)
             ]
         ).astype(np.float32)
 
@@ -98,6 +101,9 @@ class ArrowAvoider(gym.Env):
                 # velocity bounds are 5x rated speed
                 5.0,
                 5.0,
+            ] +
+            [
+                1.0 for _ in range(cones)
             ] +
             [
                 1.0 for _ in range(cones)
@@ -202,7 +208,7 @@ class ArrowAvoider(gym.Env):
             ),
             True,
         )
-        return self.get_observation()
+        return self.get_observation(), {}
 
     def shoot_arrow(self):
         if self.steps - self.last_shot_time == self.shooting_freq:
@@ -292,7 +298,8 @@ class ArrowAvoider(gym.Env):
         )
 
         # now create a numpy array with the shape of number of cones and fill it with ones
-        arrow_distances = np.ones(self.cones)
+        arrow_distances = np.zeros(self.cones)
+        arrow_directions = np.zeros(self.cones)
         # now iterate over arrows and get the distance to the closest arrow in each cone direction
         for arrow in self.arrows:
             arrow_pos = arrow.position
@@ -303,13 +310,17 @@ class ArrowAvoider(gym.Env):
             # get the index of the cone
             cone_index = int((angle + np.pi) / (2 * np.pi) * self.cones)
             # get the distance to the arrow
-            distance = (arrow_pos - avoider_pos).length / np.sqrt(VIEWPORT_W ** 2 + VIEWPORT_H ** 2)
-            # if the distance is smaller than the current distance in the cone, update it
-            if distance < arrow_distances[cone_index]:
+            distance = 1 - (arrow_pos - avoider_pos).length / np.sqrt(VIEWPORT_W ** 2 + VIEWPORT_H ** 2)
+            # calculate cosine of the angle between the arrow velocity and the avoider velocity the closer the angle is to 180 degrees the more dangerous the arrow is
+            arrow_vel = arrow.linearVelocity
+            avoider_vel = self.avoider.linearVelocity
+            danger = np.dot(arrow_vel, avoider_vel) / (np.linalg.norm(arrow_vel) * np.linalg.norm(avoider_vel))
+            if distance > arrow_distances[cone_index]:
                 arrow_distances[cone_index] = distance
+                arrow_directions[cone_index] = danger
 
         # now add the arrow distances to the observation
-        self_observation = np.concatenate((self_observation, arrow_distances))
+        self_observation = np.concatenate((self_observation, arrow_distances, arrow_directions))
         return self_observation
 
     def calculate_reward(self, obs: np.array):
@@ -321,8 +332,8 @@ class ArrowAvoider(gym.Env):
         # reward += CENTER_REWARD * (2 - abs(obs[0]) - abs(obs[1]))
 
         # reward for being far from the arrows
-        for i in range(4, len(obs)):
-            reward += ARROW_REWARD * obs[i]
+        # for i in range(4, 4 + self.cones):
+        #     reward += ARROW_REWARD * (1 - obs[i])
 
         # reward for being alive is constant
         reward += ALIVE_REWARD
@@ -351,15 +362,15 @@ class ArrowAvoider(gym.Env):
         # handle arrows
         self.update_arrows()
 
-        # if game over, return observation, reward, done, info
+        # if game over, return observation, reward, done, truncated, info
         if self.game_over:
-            return np.array(0, dtype=np.float32), self.reward, self.game_over, {}
+            return np.array(0, dtype=np.float32), self.reward, self.game_over, False, {}
 
         obs = self.get_observation()
 
         self.steps += 1
         reward = self.calculate_reward(obs)
-        return np.array(obs, dtype=np.float32), reward, self.game_over, {}
+        return np.array(obs, dtype=np.float32), reward, self.game_over, False, {}
 
 
 

@@ -1,17 +1,17 @@
 from custom_env import ArrowAvoider
 from stable_baselines3 import PPO
 
-env = ArrowAvoider(render_mode='human', cones=16)
+env = ArrowAvoider(render_mode='human', cones=4)
 
 # load model from checkpoint
-model = PPO.load("models/model_enhanced_rewarding_continue_gamma_999_2_270000_steps.zip")
+model = PPO.load("models\model_just_alive_rewarding_gamma_99_cones_4_continue_240000_steps.zip")
 
 # evaluate model
-obs = env.reset()
+obs, _ = env.reset()
 for i in range(4000):
     action, _states = model.predict(obs, deterministic=True)
-    obs, rewards, dones, info = env.step(action)
+    obs, rewards, dones, _,  info = env.step(action)
     env.render()
     if dones:
-        obs = env.reset()
+        obs, _ = env.reset()
 env.close()
